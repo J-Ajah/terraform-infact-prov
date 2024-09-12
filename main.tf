@@ -24,13 +24,22 @@ resource "aws_subnet" "public_subnet" {
   }
 }
 
-# Private Subnet
-resource "aws_subnet" "private_subnet" {
+# Private Subnet 1
+resource "aws_subnet" "private_subnet_az1" {
   vpc_id            = aws_vpc.main_vpc.id
-  cidr_block        = var.private_subnet_cidr
+  cidr_block        = var.private_subnet_cidr1
   availability_zone = "us-east-1a"
   tags = {
     Name = "private_subnet"
+  }
+}
+# Private Subnet 2
+resource "aws_subnet" "private_subnet_az2" {
+  vpc_id            = aws_vpc.main_vpc.id
+  cidr_block        = var.private_subnet_cidr2
+  availability_zone = "us-east-1b"
+  tags = {
+    Name = "private_subnet2"
   }
 }
 
@@ -76,7 +85,13 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = [aws_subnet.private_subnet.cidr_block]
+    cidr_blocks = [aws_subnet.private_subnet_az1.cidr_block]
+  }
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = [aws_subnet.private_subnet_az2.cidr_block]
   }
 
   egress {
@@ -158,7 +173,7 @@ resource "aws_iam_instance_profile" "ec2_instance_profile" {
 
 # Launch EC2 Instance in Public Subnet
 resource "aws_instance" "web_server" {
-  ami                         = "ami-0c55b159cbfafe1f0" # Amazon Linux 2 AMI
+  ami                         = "ami-0182f373e66f89c85" # Amazon Linux 2 AMI
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public_subnet.id
   vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
@@ -175,7 +190,7 @@ resource "aws_db_instance" "db_instance" {
   identifier              = "mydb"
   allocated_storage       = 20
   engine                  = var.db_engine
-  engine_version          = "8.0"
+  engine_version          = "8.0.35"
   instance_class          = var.db_instance_class
   username                = var.db_user
   password                = var.db_password
@@ -192,7 +207,7 @@ resource "aws_db_instance" "db_instance" {
 # DB Subnet Group for RDS
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "rds_subnet_group"
-  subnet_ids = [aws_subnet.private_subnet.id]
+  subnet_ids = [aws_subnet.private_subnet_az1.id, aws_subnet.private_subnet_az2.id]
 
   tags = {
     Name = "RDS Subnet Group"
